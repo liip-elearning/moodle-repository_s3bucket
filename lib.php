@@ -302,7 +302,7 @@ class repository_s3bucket extends repository {
      * @return array
      */
     public static function get_instance_option_names() {
-        return ['access_key', 'secret_key', 'endpoint', 'bucket_name'];
+        return ['access_key', 'secret_key', 'endpoint', 'bucket_name', 'region', 'useproxy'];
     }
 
     /**
