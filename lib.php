@@ -315,12 +315,6 @@ class repository_s3bucket extends repository {
         parent::instance_config_form($mform);
         $strrequired = get_string('required');
         $textops = ['maxlength' => 255, 'size' => 50];
-        $endpointselect = [];
-        $all = require($CFG->dirroot . '/local/aws/sdk/Aws/data/endpoints.json.php');
-        $endpoints = $all['partitions'][0]['regions'];
-        foreach ($endpoints as $key => $value) {
-            $endpointselect[$key] = $value['description'];
-        }
 
         $mform->addElement('passwordunmask', 'access_key', get_string('access_key', 'repository_s3'), $textops);
         $mform->setType('access_key', PARAM_RAW_TRIMMED);
@@ -328,12 +322,18 @@ class repository_s3bucket extends repository {
         $mform->setType('secret_key', PARAM_RAW_TRIMMED);
         $mform->addElement('text', 'bucket_name', get_string('bucketname', 'repository_s3bucket'), $textops);
         $mform->setType('bucket_name', PARAM_RAW_TRIMMED);
-        $mform->addElement('select', 'endpoint', get_string('endpoint', 'repository_s3'), $endpointselect);
-        $mform->setDefault('endpoint', 'us-east-1');
+        $mform->addElement('text', 'endpoint', get_string('endpoint', 'repository_s3'), $textops);
+        $mform->setType('endpoint', PARAM_RAW_TRIMMED);
+        $mform->addElement('text', 'region', get_string('region', 'repository_s3'), $textops);
+        $mform->setType('region', PARAM_RAW_TRIMMED);
+        $mform->addElement('checkbox', 'useproxy', get_string('useproxy', 'repository_s3bucket'));
+        $mform->setDefault('checkbox', 0);
 
         $mform->addRule('access_key', $strrequired, 'required', null, 'client');
         $mform->addRule('secret_key', $strrequired, 'required', null, 'client');
         $mform->addRule('bucket_name', $strrequired, 'required', null, 'client');
+        $mform->addRule('endpoint', $strrequired, 'required', null, 'client');
+        $mform->addRule('region', $strrequired, 'required', null, 'client');
     }
 
     /**
@@ -347,7 +347,21 @@ class repository_s3bucket extends repository {
     public static function instance_form_validation($mform, $data, $errors) {
         if (isset($data['access_key']) && isset($data['secret_key']) && isset($data['bucket_name'])) {
             $credentials = ['key' => $data['access_key'], 'secret' => $data['secret_key']];
-            $arr = self::addproxy(['credentials' => $credentials, 'region' => $data['endpoint']]);
+            if ($data['useproxy']) {
+                $arr = self::addproxy([
+                    'version' => 'latest',
+                    'signature_version' => 'v4',
+                    'credentials' => $credentials,
+                    'region' => $data['endpoint']]);
+            } else {
+                $arr = array(
+                    'version' => '2006-03-01',
+                    'credentials' => $credentials,
+                    'region' => $data['region'],
+                    'endpoint' => $data['endpoint']
+                );
+            }
+
             $s3 = \Aws\S3\S3Client::factory($arr);
             try {
                 // Check if the bucket exists.
@@ -388,10 +402,21 @@ class repository_s3bucket extends repository {
             if (empty($accesskey)) {
                 throw new \moodle_exception('needaccesskey', 'repository_s3');
             }
-            $arr = self::addproxy([
-                'credentials' => ['key' => $accesskey, 'secret' => $this->get_option('secret_key')],
-                'use_path_style_endpoint' => true,
-                'region' => $this->get_option('endpoint')]);
+            $credentials = ['key' => $accesskey, 'secret' => $this->get_option('secret_key')];
+            if ($this->get_option('useproxy')) {
+                $arr = self::addproxy([
+                    'version' => 'latest',
+                    'signature_version' => 'v4',
+                    'credentials' => $credentials,
+                    'region' => $this->get_option('endpoint')]);
+            } else {
+                $arr = array(
+                    'version' => '2006-03-01',
+                    'credentials' => $credentials,
+                    'region' => $this->get_option('region'),
+                    'endpoint' => $this->get_option('endpoint')
+                );
+            }
             $this->_s3client = \Aws\S3\S3Client::factory($arr);
         }
         return $this->_s3client;
