@@ -324,7 +324,7 @@ class repository_s3bucket extends repository {
         $mform->setType('bucket_name', PARAM_RAW_TRIMMED);
         $mform->addElement('text', 'endpoint', get_string('endpoint', 'repository_s3'), $textops);
         $mform->setType('endpoint', PARAM_RAW_TRIMMED);
-        $mform->addElement('text', 'region', get_string('region', 'repository_s3'), $textops);
+        $mform->addElement('text', 'region', get_string('region', 'repository_s3bucket'), $textops);
         $mform->setType('region', PARAM_RAW_TRIMMED);
         $mform->addElement('checkbox', 'useproxy', get_string('useproxy', 'repository_s3bucket'));
         $mform->setDefault('checkbox', 0);
